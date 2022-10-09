@@ -180,7 +180,7 @@ class fbm3d:
         hdu.writeto(fits_file,overwrite=overwrite)
      
 class fbm3d_ISM:
-  def __init__(self,nx=64,ny=64,nz=64,mach=1.0,bvalue=0.4,k_cut_index=None,
+  def __init__(self,nx=64,ny=64,nz=64,mach=1.0,bvalue=0.4,normalize=True,k_cut_index=None,
                seed=None,gaussian_amplitude=False,dtype='float32'):
 
      import numpy as np
@@ -218,6 +218,8 @@ class fbm3d_ISM:
      self.slope       = slope
      self.k_cut       = img.k_cut
      self.data        = np.exp(img.data * sigma_lnrho)
+     if normalize == True:
+        self.data = self.data/np.mean(self.data)
 
   def writeto(self,fits_file=None,overwrite=True):
      from astropy.io import fits
