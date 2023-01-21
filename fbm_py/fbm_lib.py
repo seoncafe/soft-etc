@@ -23,7 +23,7 @@
 # plt.imshow(np.sum(c.data, axis=1), origin='lower')
 
 class fbm2d:
-  def __init__(self,nx=64,ny=64,slope=2.8,k_cut_index=None,output_Ak=False,
+  def __init__(self,nx=64,ny=64,slope=2.4,k_cut_index=None,output_Ak=False,
                seed=None,gaussian_amplitude=False,dtype='float32'):
      import numpy as np
      from numpy.fft import fftfreq, irfft2
@@ -164,9 +164,9 @@ class fbm3d:
   
      #--- float32
      if dtype != 'float64': img  = np.float32(img)
-     self.data   = img
-     self.k_cut  = k_cut
-     self.slope  = slope
+     self.data  = img
+     self.k_cut = k_cut
+     self.slope = slope
      if output_Ak == True: self.Ak = Ak
 
   def writeto(self,fits_file=None,overwrite=True):
@@ -176,6 +176,7 @@ class fbm3d:
         hdr          = fits.Header()
         hdr['k_cut'] = (self.k_cut, 'wavenumber cut')
         hdr['slope'] = (self.slope, 'power spectrum slope')
+        hdr['sigma'] = (self.sigma, 'standard deviation')
         hdu = fits.PrimaryHDU(self.data, header=hdr)
         hdu.writeto(fits_file,overwrite=overwrite)
      
@@ -232,6 +233,33 @@ class fbm3d_ISM:
         hdr['slope_ln'] = (self.slope_ln,    'slope_ln')
         hdr['k_cut']    = (self.k_cut,       'wavenumber cut')
         hdr['slope']    = (self.slope,       'power spectrum slope')
+        hdu = fits.PrimaryHDU(self.data, header=hdr)
+        hdu.writeto(fits_file,overwrite=overwrite)
+
+class fbm3d_lognormal:
+  def __init__(self,nx=64,ny=64,nz=64,slope=2.4,sigma=1.0,normalize=True,k_cut_index=None,
+               seed=None,gaussian_amplitude=False,dtype='float32'):
+
+     import numpy as np
+
+     img = fbm3d(nx=nx,ny=ny,nz=nz,k_cut_index=k_cut_index,slope=slope,seed=seed,
+                 gaussian_amplitude=gaussian_amplitude,dtype=dtype)
+
+     self.slope = slope
+     self.sigma = sigma
+     self.k_cut = img.k_cut
+     self.data  = np.exp(img.data * sigma)
+     if normalize == True:
+        self.data = self.data/np.mean(self.data)
+
+  def writeto(self,fits_file=None,overwrite=True):
+     from astropy.io import fits
+     if fits_file != None:
+        fits_file = fits_file.replace('.fits.gz','').replace('.fits','')+'.fits.gz'
+        hdr          = fits.Header()
+        hdr['slope'] = (self.slope, 'power spectrum slope of log(rho)')
+        hdr['sigma'] = (self.sigma, 'sigma_log10')
+        hdr['k_cut'] = (self.k_cut, 'wavenumber cut')
         hdu = fits.PrimaryHDU(self.data, header=hdr)
         hdu.writeto(fits_file,overwrite=overwrite)
 
