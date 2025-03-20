@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #--
-#-- Written by K.I. Seon (2022.09.19).
+#-- Written by K.I. Seon (2022.09.19). Updated on 2024.04.05
 #--
 #-- fbm2d and fbm3d give 2D and 3D fractal data, respectively, with mean = 0 and standard deviation = 1.
 #-- fbm3d_ISM or fbm3d_lognormal_ISM produce a 3D cube data to mimic the ISM fractal density, described by a lognormal distribution.
@@ -22,9 +22,84 @@
 # plt.imshow(c.data[:,10,:], origin='lower')
 # plt.imshow(np.sum(c.data, axis=1), origin='lower')
 
+def centering_2D(img, centering=1):
+    import numpy as np
+
+    n0,n1 = img.shape
+    n0cen = n0//2
+    n1cen = n1//2
+    if centering == 1:
+       loc = np.unravel_index(np.argmin(img), img.shape)
+    elif centering == 2:
+       loc = np.unravel_index(np.argmax(img), img.shape)
+    else:
+       return img
+
+    arr = np.array(img, copy=True)
+    if loc[0] < n0cen-1:
+       arr[n0cen-loc[0]:n0,:] = img[0:loc[0]+n0cen,:]
+       arr[0:n0cen-loc[0],:]  = img[loc[0]+n0cen:n0,:]
+       img = np.array(arr, copy=True)
+    elif loc[0] > n0cen-1:
+       arr[0:3*n0cen-loc[0],:]  = img[loc[0]-n0cen:n0,:]
+       arr[3*n0cen-loc[0]:n0,:] = img[0:loc[0]-n0cen,:]
+       img = np.array(arr, copy=True)
+    if loc[1] < n1cen-1:
+       arr[:,n1cen-loc[1]:n1] = img[:,0:loc[1]+n1cen]
+       arr[:,0:n1cen-loc[1]]  = img[:,loc[1]+n1cen:n1]
+       img = np.array(arr, copy=True)
+    elif loc[1] > n1cen-1:
+       arr[:,0:3*n1cen-loc[1]]  = img[:,loc[1]-n1cen:n1]
+       arr[:,3*n1cen-loc[1]:n1] = img[:,0:loc[1]-n1cen]
+       img = np.array(arr, copy=True)
+
+    return img
+
+def centering_3D(img, centering=1):
+    import numpy as np
+
+    n0,n1,n2 = img.shape
+    n0cen = n0//2
+    n1cen = n1//2
+    n2cen = n2//2
+    if centering == 1:
+       loc = np.unravel_index(np.argmin(img), img.shape)
+    elif centering == 2:
+       loc = np.unravel_index(np.argmax(img), img.shape)
+    else:
+       return img
+
+    arr = np.array(img, copy=True)
+    if loc[0] < n0cen-1:
+       arr[n0cen-loc[0]:n0,:,:] = img[0:loc[0]+n0cen,:,:]
+       arr[0:n0cen-loc[0],:,:]  = img[loc[0]+n0cen:n0,:,:]
+       img = np.array(arr, copy=True)
+    elif loc[0] > n0cen-1:
+       arr[0:3*n0cen-loc[0],:,:]  = img[loc[0]-n0cen:n0,:,:]
+       arr[3*n0cen-loc[0]:n0,:,:] = img[0:loc[0]-n0cen,:,:]
+       img = np.array(arr, copy=True)
+    if loc[1] < n1cen-1:
+       arr[:,n1cen-loc[1]:n1,:] = img[:,0:loc[1]+n1cen,:]
+       arr[:,0:n1cen-loc[1],:]  = img[:,loc[1]+n1cen:n1,:]
+       img = np.array(arr, copy=True)
+    elif loc[1] > n1cen-1:
+       arr[:,0:3*n1cen-loc[1],:]  = img[:,loc[1]-n1cen:n1,:]
+       arr[:,3*n1cen-loc[1]:n1,:] = img[:,0:loc[1]-n1cen,:]
+       img = np.array(arr, copy=True)
+    if loc[2] < n2cen-1:
+       arr[:,:,n2cen-loc[2]:n2] = img[:,:,0:loc[2]+n2cen]
+       arr[:,:,0:n2cen-loc[2]]  = img[:,:,loc[2]+n2cen:n2]
+       img = np.array(arr, copy=True)
+    elif loc[2] > n2cen-1:
+       arr[:,:,0:3*n2cen-loc[2]]  = img[:,:,loc[2]-n2cen:n2]
+       arr[:,:,3*n2cen-loc[2]:n2] = img[:,:,0:loc[2]-n2cen]
+       img = np.array(arr, copy=True)
+
+    return img
+
 class fbm2d:
-  def __init__(self,nx=64,ny=64,slope=2.4,k_cut_index=None,output_Ak=False,
-               seed=None,gaussian_amplitude=False,dtype='float32'):
+  def __init__(self,nx=64,ny=64,slope=2.8,k_cut_index=None,output_Ak=False,
+               seed=None,gaussian_amplitude=False,dtype='float32',centering=0):
      import numpy as np
      from numpy.fft import fftfreq, irfft2
 
@@ -64,6 +139,9 @@ class fbm2d:
      Ak      = Ak/np.sqrt(Anorm)
      img     = irfft2(Ak, norm='forward')
 
+     #--- centering
+     if centering != 0: img = centering_2D(img, centering=centering)
+
      #--- float32
      if dtype != 'float64': img  = np.float32(img)
      self.data   = img
@@ -83,7 +161,7 @@ class fbm2d:
 
 class fbm3d:
   def __init__(self,nx=64,ny=64,nz=64,slope=2.8,k_cut_index=None,output_Ak=False,
-               seed=None,gaussian_amplitude=False,dtype='float32'):
+               seed=None,gaussian_amplitude=False,dtype='float32',centering=0):
      import numpy as np
      from numpy.fft import fftfreq, irfftn
   
@@ -162,11 +240,14 @@ class fbm3d:
      #img    = img/np.std(img)
      #print('1, mean, stddev = ', np.mean(img), np.std(img))
   
+     #--- centering
+     if centering != 0: img = centering_3D(img, centering=centering)
+
      #--- float32
      if dtype != 'float64': img  = np.float32(img)
-     self.data  = img
-     self.k_cut = k_cut
-     self.slope = slope
+     self.data   = img
+     self.k_cut  = k_cut
+     self.slope  = slope
      if output_Ak == True: self.Ak = Ak
 
   def writeto(self,fits_file=None,overwrite=True):
@@ -176,13 +257,12 @@ class fbm3d:
         hdr          = fits.Header()
         hdr['k_cut'] = (self.k_cut, 'wavenumber cut')
         hdr['slope'] = (self.slope, 'power spectrum slope')
-        hdr['sigma'] = (self.sigma, 'standard deviation')
         hdu = fits.PrimaryHDU(self.data, header=hdr)
         hdu.writeto(fits_file,overwrite=overwrite)
      
 class fbm3d_ISM:
   def __init__(self,nx=64,ny=64,nz=64,mach=1.0,bvalue=0.4,normalize=True,k_cut_index=None,
-               seed=None,gaussian_amplitude=False,dtype='float32'):
+               seed=None,gaussian_amplitude=False,dtype='float32',centering=0):
 
      import numpy as np
      par = np.array([ 2.841e-01, -9.168e-01, -9.334e-01,  1.221e+00, -2.546e-01,
@@ -210,7 +290,7 @@ class fbm3d_ISM:
      slope = np.sum(bcoeff[:] * slope_ln**np.arange(4))
 
      img = fbm3d(nx=nx,ny=ny,nz=nz,k_cut_index=k_cut_index,slope=slope,seed=seed,
-                 gaussian_amplitude=gaussian_amplitude,dtype=dtype)
+                 gaussian_amplitude=gaussian_amplitude,dtype=dtype,centering=centering)
 
      self.mach        = mach
      self.bvalue      = bvalue
@@ -219,11 +299,14 @@ class fbm3d_ISM:
      self.slope       = slope
      self.k_cut       = img.k_cut
      self.data        = np.exp(img.data * sigma_lnrho)
+     if dtype != 'float64':
+        self.data = np.float32(self.data)
      if normalize == True:
         self.data = self.data/np.mean(self.data)
 
   def writeto(self,fits_file=None,overwrite=True):
      from astropy.io import fits
+     import numpy as np
      if fits_file != None:
         fits_file = fits_file.replace('.fits.gz','').replace('.fits','')+'.fits.gz'
         hdr             = fits.Header()
@@ -233,33 +316,6 @@ class fbm3d_ISM:
         hdr['slope_ln'] = (self.slope_ln,    'slope_ln')
         hdr['k_cut']    = (self.k_cut,       'wavenumber cut')
         hdr['slope']    = (self.slope,       'power spectrum slope')
-        hdu = fits.PrimaryHDU(self.data, header=hdr)
-        hdu.writeto(fits_file,overwrite=overwrite)
-
-class fbm3d_lognormal:
-  def __init__(self,nx=64,ny=64,nz=64,slope=2.4,sigma=1.0,normalize=True,k_cut_index=None,
-               seed=None,gaussian_amplitude=False,dtype='float32'):
-
-     import numpy as np
-
-     img = fbm3d(nx=nx,ny=ny,nz=nz,k_cut_index=k_cut_index,slope=slope,seed=seed,
-                 gaussian_amplitude=gaussian_amplitude,dtype=dtype)
-
-     self.slope = slope
-     self.sigma = sigma
-     self.k_cut = img.k_cut
-     self.data  = np.exp(img.data * sigma)
-     if normalize == True:
-        self.data = self.data/np.mean(self.data)
-
-  def writeto(self,fits_file=None,overwrite=True):
-     from astropy.io import fits
-     if fits_file != None:
-        fits_file = fits_file.replace('.fits.gz','').replace('.fits','')+'.fits.gz'
-        hdr          = fits.Header()
-        hdr['slope'] = (self.slope, 'power spectrum slope of log(rho)')
-        hdr['sigma'] = (self.sigma, 'sigma_log10')
-        hdr['k_cut'] = (self.k_cut, 'wavenumber cut')
         hdu = fits.PrimaryHDU(self.data, header=hdr)
         hdu.writeto(fits_file,overwrite=overwrite)
 
